@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateApiRequest, safeErrorResponse, checkRateLimit } from '@/lib/security/api-guard';
+import { authenticateApiRequest, safeErrorResponse, checkRateLimit, getTenantOrgId } from '@/lib/security/api-guard';
 import { WebhookRepository } from '@/lib/webhooks/repository';
 import { WebhookDispatcher } from '@/lib/webhooks/webhook-dispatcher';
 import { supabaseAdmin } from '@/lib/supabase/admin';
@@ -34,7 +34,7 @@ export async function POST(
       );
     }
 
-    const orgId = user.organizationId || '8e1f3246-4eec-4f2a-bc19-9e24f4f1d517';
+    const orgId = getTenantOrgId(user);
     const partner = await WebhookRepository.getPartnerById(id);
 
     if (!partner) {

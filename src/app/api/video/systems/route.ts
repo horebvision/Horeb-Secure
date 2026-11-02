@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateApiRequest, safeErrorResponse, sanitizeString, isValidUuid } from '@/lib/security/api-guard';
+import { authenticateApiRequest, safeErrorResponse, sanitizeString, isValidUuid, getTenantOrgId } from '@/lib/security/api-guard';
 import { VideoRepository, validateVideoEndpointUrl, sanitizeSystemForClient } from '@/lib/video';
 
 export async function GET(req: NextRequest) {
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
       return errorResponse || NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    const orgId = user.organizationId || '8e1f3246-4eec-4f2a-bc19-9e24f4f1d517';
+    const orgId = getTenantOrgId(user);
     const systems = await VideoRepository.getVideoSystemsByOrg(orgId);
 
     const safeSystems = systems.map(sanitizeSystemForClient);
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const orgId = user.organizationId || '8e1f3246-4eec-4f2a-bc19-9e24f4f1d517';
+    const orgId = getTenantOrgId(user);
 
     const system = await VideoRepository.createVideoSystem(
       {

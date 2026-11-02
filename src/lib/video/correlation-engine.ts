@@ -45,11 +45,14 @@ export class VideoCorrelationEngine {
     if (!eventId) {
       throw new Error('L’identifiant unique d’événement vidéo (event_id) est obligatoire.');
     }
+    if (!payload.organization_id || !payload.protected_site_id) {
+      throw new Error('organization_id et protected_site_id sont obligatoires (aucune organisation par défaut).');
+    }
 
     // 1. Enregistrement et contrôle d'idempotence (Section 13)
     const { event, isDuplicate } = await VideoRepository.recordEvent({
-      organization_id: payload.organization_id || '8e1f3246-4eec-4f2a-bc19-9e24f4f1d517',
-      protected_site_id: payload.protected_site_id || '00000000-0000-0000-0000-000000000001',
+      organization_id: payload.organization_id,
+      protected_site_id: payload.protected_site_id,
       camera_id: payload.camera_id || null,
       provider,
       event_id: eventId,

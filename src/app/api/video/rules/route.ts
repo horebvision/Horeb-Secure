@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateApiRequest, safeErrorResponse, isValidUuid } from '@/lib/security/api-guard';
+import { authenticateApiRequest, safeErrorResponse, isValidUuid, getTenantOrgId } from '@/lib/security/api-guard';
 import { VideoRepository } from '@/lib/video';
 
 export async function GET(req: NextRequest) {
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Identifiant de site (UUID) requis.' }, { status: 400 });
     }
 
-    const orgId = user.organizationId || '8e1f3246-4eec-4f2a-bc19-9e24f4f1d517';
+    const orgId = getTenantOrgId(user);
     const rules = await VideoRepository.getRulesForSite(siteId, orgId);
 
     return NextResponse.json({
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Le type d’événement est requis.' }, { status: 400 });
     }
 
-    const orgId = user.organizationId || '8e1f3246-4eec-4f2a-bc19-9e24f4f1d517';
+    const orgId = getTenantOrgId(user);
 
     const rule = await VideoRepository.createRule(
       {

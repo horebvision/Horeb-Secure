@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateApiRequest, safeErrorResponse, sanitizeString, isValidUuid } from '@/lib/security/api-guard';
+import { authenticateApiRequest, safeErrorResponse, sanitizeString, isValidUuid, getTenantOrgId } from '@/lib/security/api-guard';
 import { VideoRepository, sanitizeCameraForClient } from '@/lib/video';
 
 export async function GET(
@@ -27,7 +27,7 @@ export async function GET(
       return errorResponse || NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    const orgId = user.organizationId || '8e1f3246-4eec-4f2a-bc19-9e24f4f1d517';
+    const orgId = getTenantOrgId(user);
     const camera = await VideoRepository.getCameraById(id, orgId);
 
     if (!camera) {
@@ -62,7 +62,7 @@ export async function PATCH(
       return errorResponse || NextResponse.json({ error: 'Droits insuffisants' }, { status: 403 });
     }
 
-    const orgId = user.organizationId || '8e1f3246-4eec-4f2a-bc19-9e24f4f1d517';
+    const orgId = getTenantOrgId(user);
     const body = await req.json();
 
     const updates: any = {};
@@ -108,7 +108,7 @@ export async function DELETE(
       return errorResponse || NextResponse.json({ error: 'Droits insuffisants' }, { status: 403 });
     }
 
-    const orgId = user.organizationId || '8e1f3246-4eec-4f2a-bc19-9e24f4f1d517';
+    const orgId = getTenantOrgId(user);
     const ok = await VideoRepository.disableCamera(id, orgId, user.id);
 
     if (!ok) {

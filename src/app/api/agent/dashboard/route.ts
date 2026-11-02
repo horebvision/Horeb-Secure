@@ -4,6 +4,7 @@ import {
   authenticateApiRequest,
   getScopedDatabaseClient,
   safeErrorResponse,
+  getTenantOrgId,
 } from '@/lib/security/api-guard';
 
 /**
@@ -42,7 +43,7 @@ export async function GET(req: NextRequest) {
 
       if (!existingAg) {
         const badge = `AGT-${user.id.substring(0, 6).toUpperCase()}`;
-        const targetOrg = user.organizationId || '8e1f3246-4eec-4f2a-bc19-9e24f4f1d517';
+        const targetOrg = getTenantOrgId(user);
         const { data: center } = await supabaseAdmin
           .from('security_centers')
           .select('id')
@@ -66,7 +67,7 @@ export async function GET(req: NextRequest) {
       const { data: firstAgent } = await supabaseAdmin
         .from('security_agents')
         .select('id')
-        .eq('organization_id', user.organizationId || '8e1f3246-4eec-4f2a-bc19-9e24f4f1d517')
+        .eq('organization_id', getTenantOrgId(user))
         .limit(1)
         .maybeSingle();
 

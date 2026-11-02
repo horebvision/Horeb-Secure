@@ -16,6 +16,10 @@ import type {
 
 export class ApiKeyService {
   private static memoryCache = new Map<string, ApiKey>();
+  // En serverless, une révocation faite sur une instance n'invalide pas le cache des autres :
+  // les entrées utilisées pour la validation expirent donc rapidement (relecture en base).
+  private static readonly VALIDATION_CACHE_TTL_MS = 60_000;
+  private static validationCacheExpiry = new Map<string, number>();
 
   /**
    * Calcule le hash SHA-256 canonique d'une clé API
@@ -195,7 +199,8 @@ export class ApiKeyService {
     const keyHash = this.hashKey(rawKey);
 
     // 1. Recherche en mémoire
-    let keyRecord: ApiKey | null = this.memoryCache.get(keyHash) || null;
+    const cacheFresh = (this.validationCacheExpiry.get(keyHash) || 0) > Date.now();
+    let keyRecord: ApiKey | null = cacheFresh ? this.memoryCache.get(keyHash) || null : null;
 
     // 2. Recherche dans la table api_keys si pas en cache
     if (!keyRecord) {
@@ -209,6 +214,7 @@ export class ApiKeyService {
         if (!error && dbKey) {
           keyRecord = dbKey as ApiKey;
           this.memoryCache.set(keyHash, keyRecord);
+          this.validationCacheExpiry.set(keyHash, Date.now() + this.VALIDATION_CACHE_TTL_MS);
         }
       } catch {
         // Fallback

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateApiRequest } from '@/lib/security/api-guard';
+import { authenticateApiRequest, getTenantOrgId } from '@/lib/security/api-guard';
 import { ExecutiveReportBuilder, ReportType } from '@/lib/reports/executive-report-builder';
 
 export const dynamic = 'force-dynamic';
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const type = (searchParams.get('type') as ReportType) || 'MONTHLY';
     const format = searchParams.get('format') || 'json'; // json, csv, html
-    const orgId = user.organizationId || 'fa000000-0000-0000-0000-000000000001';
+    const orgId = getTenantOrgId(user);
 
     const report = await ExecutiveReportBuilder.generateReport(type, {
       organizationId: orgId,

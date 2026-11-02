@@ -212,7 +212,10 @@ export class ExportService {
     const rawAlerts = await this.queryInterventions(filters, user);
     const totalItems = rawAlerts.length;
 
-    const orgId = user.organizationId || (rawAlerts[0]?.organization_id) || '8e1f3246-4eec-4f2a-bc19-9e24f4f1d517';
+    const orgId = user.organizationId || rawAlerts[0]?.organization_id;
+    if (!orgId) {
+      throw new Error('Aucune organisation associée à cet export.');
+    }
 
     // 3. Création du Job
     const job = await ExportRepository.createJob({

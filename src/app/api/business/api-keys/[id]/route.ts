@@ -19,7 +19,11 @@ export async function DELETE(
     }
 
     const { id } = await params;
-    const orgId = user.organizationId || 'fa000000-0000-0000-0000-000000000001';
+    // Jamais d'organisation par défaut : sans tenant rattaché, aucune clé ne peut être révoquée
+    const orgId = user.organizationId;
+    if (!orgId) {
+      return NextResponse.json({ success: false, error: 'Aucune organisation associée à ce compte' }, { status: 403 });
+    }
 
     const result = await ApiKeyService.revokeApiKey(id, orgId, user.id);
 

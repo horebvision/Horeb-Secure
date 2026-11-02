@@ -12,6 +12,7 @@
     "lint": "eslint",
     "lint:fix": "eslint --fix",
     "type-check": "tsc --noEmit",
+    "test": "vitest run",
     "env:check": "node -e \"const fs=require('fs');if(!fs.existsSync('.env.local')){console.error('ERROR: .env.local not found. Copy .env.example to .env.local and fill in your credentials.');process.exit(1);}else{console.log('OK: .env.local exists');}\"",
     "package:dist": "node scripts/create-dist-archive.js",
     "deploy": "node scripts/deploy-netlify.js",
@@ -45,6 +46,7 @@
     "eslint-config-next": "16.3.6",
     "netlify-cli": "^27.9.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.7"
   }
 }

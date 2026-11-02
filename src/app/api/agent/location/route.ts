@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { broadcastOnce, orgChannelName } from '@/lib/realtime/broadcast';
-import { authenticateApiRequest, getScopedDatabaseClient, safeErrorResponse } from '@/lib/security/api-guard';
+import { authenticateApiRequest, getScopedDatabaseClient, safeErrorResponse, getTenantOrgId } from '@/lib/security/api-guard';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
 /**
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
           .from('security_agents')
           .insert({
             user_id: user.id,
-            organization_id: user.organizationId || '8e1f3246-4eec-4f2a-bc19-9e24f4f1d517',
+            organization_id: getTenantOrgId(user),
             security_center_id: user.securityCenterId || '202a6970-8afb-44cf-9455-aa16e2c7cbd1',
             badge_number: badge,
             duty_status: dutyStatus || 'AVAILABLE',

@@ -29,10 +29,14 @@ export async function GET(
     }
 
     // Contrôle d'habilitation : seul l'auteur ou un admin peut voir le job
-    if (user.role !== 'ADMIN' && job.requested_by !== user.id) {
-      if (user.role === 'SECURITY_MANAGER' && user.organizationId !== job.organization_id) {
-        return NextResponse.json({ error: 'Accès refusé : job d’une autre organisation' }, { status: 403 });
-      }
+    // Auteur, Super Admin plateforme, ou responsable/admin de la MÊME organisation uniquement
+    const isAuthor = job.requested_by === user.id;
+    const isSameOrgSupervisor =
+      (user.role === 'ADMIN' || user.role === 'SECURITY_MANAGER') &&
+      !!user.organizationId &&
+      user.organizationId === job.organization_id;
+    if (!isAuthor && !user.isPlatformAdmin && !isSameOrgSupervisor) {
+      return NextResponse.json({ error: 'Accès refusé à ce job d’export' }, { status: 403 });
     }
 
     const downloadUrl = job.status === 'COMPLETED' && job.download_token

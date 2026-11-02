@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin, isRealServiceRoleKey } from '@/lib/supabase/admin';
 import { createClient as createClientJS } from '@supabase/supabase-js';
-import { type UserRole, isPlatformAdminUser } from '@/modules/users/types';
+import { type UserRole, isPlatformAdminUser, MASTER_PLATFORM_ORG_ID } from '@/modules/users/types';
 import { assertAuthorizedSupabaseUrl } from '@/lib/config/env';
 
 
@@ -485,6 +485,10 @@ export function safeErrorResponse(
   publicMessage = 'Une erreur est survenue lors du traitement de la requête',
   statusCode = 500
 ): NextResponse {
+  if (error instanceof TenantRequiredError) {
+    return NextResponse.json({ success: false, error: error.message, code: 'TENANT_REQUIRED' }, { status: 403 });
+  }
+
   // Log complet uniquement sur le serveur
   console.error('[SECURITY SANITIZED ERROR]:', error);
 
@@ -528,6 +532,29 @@ export async function getScopedDatabaseClient(req?: NextRequest) {
     console.warn('[getScopedDatabaseClient] Fallback to supabaseAdmin:', err);
     return supabaseAdmin;
   }
+}
+
+// ============================================================================
+// 4b. ORGANISATION CIBLE OBLIGATOIRE
+// ============================================================================
+export class TenantRequiredError extends Error {
+  readonly status = 403;
+  constructor(message = 'Aucune organisation n’est associée à ce compte.') {
+    super(message);
+    this.name = 'TenantRequiredError';
+  }
+}
+
+/**
+ * Organisation de travail de l'utilisateur. Remplace l'ancien repli
+ * `user.organizationId || <organisation maître>` qui exposait les données de l'organisation
+ * maître à tout compte sans organisation. Seul le Super Admin plateforme sans rattachement
+ * travaille par défaut sur l'organisation maître ; tout autre compte sans organisation est refusé.
+ */
+export function getTenantOrgId(user: Pick<AuthenticatedApiUser, 'organizationId' | 'isPlatformAdmin'>): string {
+  if (user.organizationId) return user.organizationId;
+  if (user.isPlatformAdmin) return MASTER_PLATFORM_ORG_ID;
+  throw new TenantRequiredError();
 }
 
 // ============================================================================

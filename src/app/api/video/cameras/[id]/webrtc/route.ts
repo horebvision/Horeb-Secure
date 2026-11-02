@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateApiRequest, safeErrorResponse, isValidUuid } from '@/lib/security/api-guard';
+import { authenticateApiRequest, safeErrorResponse, isValidUuid, getTenantOrgId } from '@/lib/security/api-guard';
 import { VideoRepository, verifyEphemeralStreamToken } from '@/lib/video';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import http from 'http';
@@ -54,7 +54,7 @@ export async function POST(
       if (errorResponse || !user) {
         return errorResponse || NextResponse.json({ error: 'Droits insuffisants pour accéder au flux WebRTC' }, { status: 403 });
       }
-      orgId = user.organizationId || '8e1f3246-4eec-4f2a-bc19-9e24f4f1d517';
+      orgId = getTenantOrgId(user);
       userId = user.id;
     }
 

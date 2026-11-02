@@ -7,9 +7,9 @@ import {
   validateGeoCoordinates,
   safeErrorResponse,
   isValidUuid,
+  getTenantOrgId,
 } from '@/lib/security/api-guard';
 
-const DEFAULT_ORG_ID = '8e1f3246-4eec-4f2a-bc19-9e24f4f1d517';
 const DEFAULT_CENTER_ID = '202a6970-8afb-44cf-9455-aa16e2c7cbd1';
 const ALLOWED_SITE_TYPES = ['RESIDENCE', 'COMMERCE', 'ENTREPRISE', 'AUTRE'] as const;
 
@@ -207,7 +207,9 @@ export async function POST(req: NextRequest) {
     const sanitizedInstructions = sanitizeString(access_instructions, 500);
 
     // 4. Détermination sécurisée de l'organisation et du propriétaire
-    let orgId = user.organizationId || DEFAULT_ORG_ID;
+    // Client sans organisation : rattaché au tenant par défaut configuré, jamais à l'organisation maître
+    const defaultClientOrg = user.role === 'USER' ? process.env.DEFAULT_ALERT_ORGANIZATION_ID || null : null;
+    let orgId = user.organizationId || defaultClientOrg || getTenantOrgId(user);
     if (user.isPlatformAdmin && organization_id && isValidUuid(organization_id)) {
       orgId = organization_id;
     } else if (user.role === 'ADMIN' && user.organizationId) {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateApiRequest } from '@/lib/security/api-guard';
+import { authenticateApiRequest, getTenantOrgId } from '@/lib/security/api-guard';
 import { InvoiceService } from '@/lib/billing/invoice-service';
 import { PaymentGatewayManager } from '@/lib/billing/payment-provider';
 
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
       return errorResponse || NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    const orgId = user.organizationId || 'fa000000-0000-0000-0000-000000000001';
+    const orgId = getTenantOrgId(user);
     const invoices = await InvoiceService.getInvoicesByOrganization(orgId);
 
     return NextResponse.json({
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
       return errorResponse || NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
     }
 
-    const orgId = user.organizationId || 'fa000000-0000-0000-0000-000000000001';
+    const orgId = getTenantOrgId(user);
     const body = await req.json();
     const { invoiceId, action } = body;
 

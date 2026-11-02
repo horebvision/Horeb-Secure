@@ -5,15 +5,17 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { safeErrorResponse, checkRateLimit } from '@/lib/security/api-guard';
-import { VideoCorrelationEngine } from '@/lib/video';
+import { VideoCorrelationEngine, VideoRepository } from '@/lib/video';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export async function POST(req: NextRequest) {
   try {
     const gatewayId = req.headers.get('x-gateway-id');
     const gatewayToken = req.headers.get('x-gateway-token') || req.headers.get('authorization')?.replace('Bearer ', '');
 
-    if (!gatewayId || !gatewayToken) {
-      return NextResponse.json({ error: 'Authentification passerelle requise.' }, { status: 401 });
+    const gateway = await VideoRepository.authenticateGateway(gatewayId, gatewayToken || null);
+    if (!gateway) {
+      return NextResponse.json({ error: 'Authentification passerelle invalide ou révoquée.' }, { status: 401 });
     }
 
     const body = await req.json();
@@ -31,7 +33,8 @@ export async function POST(req: NextRequest) {
       const payload = {
         provider: raw.provider || 'EDGE_GATEWAY',
         event_id: raw.event_id,
-        organization_id: raw.organization_id,
+        // L'organisation est TOUJOURS celle de la passerelle authentifiée (jamais celle annoncée)
+        organization_id: gateway.organization_id,
         protected_site_id: raw.protected_site_id,
         camera_id: raw.camera_id,
         camera_internal_id: raw.camera_internal_id,
@@ -47,7 +50,16 @@ export async function POST(req: NextRequest) {
         },
       };
 
-      if (!payload.event_id || !payload.event_type) continue;
+      if (!payload.event_id || !payload.event_type || !payload.protected_site_id) continue;
+
+      // Le site doit appartenir à l'organisation de la passerelle
+      const { data: ownedSite } = await supabaseAdmin
+        .from('protected_sites')
+        .select('id')
+        .eq('id', payload.protected_site_id)
+        .eq('organization_id', gateway.organization_id)
+        .maybeSingle();
+      if (!ownedSite) continue;
 
       const correlationResult = await VideoCorrelationEngine.processVideoEvent(payload);
       if (correlationResult.actionTaken === 'CREATE_ALERT') alertsCreated++;

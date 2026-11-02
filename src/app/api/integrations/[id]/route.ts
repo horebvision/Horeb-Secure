@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateApiRequest, safeErrorResponse, sanitizeString, checkRateLimit } from '@/lib/security/api-guard';
+import { authenticateApiRequest, safeErrorResponse, sanitizeString, checkRateLimit, getTenantOrgId } from '@/lib/security/api-guard';
 import { WebhookRepository } from '@/lib/webhooks/repository';
 import { validateWebhookUrl } from '@/lib/webhooks/ssrf-guard';
 import { supabaseAdmin } from '@/lib/supabase/admin';
@@ -26,7 +26,7 @@ export async function PATCH(
       return errorResponse || NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    const orgId = user.organizationId || '8e1f3246-4eec-4f2a-bc19-9e24f4f1d517';
+    const orgId = getTenantOrgId(user);
     const partner = await WebhookRepository.getPartnerById(id);
 
     if (!partner) {
@@ -129,7 +129,7 @@ export async function DELETE(
       return errorResponse || NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    const orgId = user.organizationId || '8e1f3246-4eec-4f2a-bc19-9e24f4f1d517';
+    const orgId = getTenantOrgId(user);
     const partner = await WebhookRepository.getPartnerById(id);
 
     if (!partner) {

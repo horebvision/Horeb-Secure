@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateApiRequest } from '@/lib/security/api-guard';
+import { authenticateApiRequest, getTenantOrgId } from '@/lib/security/api-guard';
 import { SubscriptionService } from '@/lib/billing/subscription-service';
 import { PlanCatalog } from '@/lib/billing/plans';
 import { PlanCode, BillingCycle } from '@/lib/billing/types';
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
       return errorResponse || NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    const orgId = user.organizationId || 'fa000000-0000-0000-0000-000000000001';
+    const orgId = getTenantOrgId(user);
     const subscription = await SubscriptionService.getSubscription(orgId);
     const plan = await PlanCatalog.getPlanByCode(subscription.planCode);
 
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
       return errorResponse || NextResponse.json({ error: 'Accès réservé aux administrateurs' }, { status: 403 });
     }
 
-    const orgId = user.organizationId || 'fa000000-0000-0000-0000-000000000001';
+    const orgId = getTenantOrgId(user);
     const body = await req.json();
     const { planCode, billingCycle, reason } = body;
 

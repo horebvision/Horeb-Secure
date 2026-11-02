@@ -704,6 +704,30 @@ export class VideoRepository {
     };
   }
 
+  /**
+   * Authentifie une passerelle Edge par son identifiant et son jeton secret
+   * (comparaison à temps constant du hash SHA-256). Retourne la passerelle ou null.
+   * Auparavant, les routes appelées par les passerelles ne vérifiaient que la PRÉSENCE du jeton.
+   */
+  static async authenticateGateway(
+    gatewayId: string | null,
+    token: string | null
+  ): Promise<{ id: string; organization_id: string } | null> {
+    if (!gatewayId || !token) return null;
+    const { data } = await supabaseAdmin
+      .from('video_gateways' as any)
+      .select('id, organization_id, status, secret_token_hash')
+      .eq('id', gatewayId)
+      .maybeSingle();
+    const gw = data as { id: string; organization_id: string; status: string; secret_token_hash: string | null } | null;
+    if (!gw || !gw.secret_token_hash || gw.status === 'REVOKED') return null;
+
+    const provided = Buffer.from(crypto.createHash('sha256').update(token).digest('hex'), 'utf8');
+    const expected = Buffer.from(gw.secret_token_hash, 'utf8');
+    if (provided.length !== expected.length || !crypto.timingSafeEqual(provided, expected)) return null;
+    return { id: gw.id, organization_id: gw.organization_id };
+  }
+
   static async recordGatewayHeartbeat(
     gatewayId: string,
     payload: GatewayHeartbeatPayload

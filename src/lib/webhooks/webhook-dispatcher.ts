@@ -38,7 +38,7 @@ export class WebhookDispatcher {
       event,
       event_id: eventId,
       timestamp: new Date().toISOString(),
-      organization_id: proof.organization_id || '8e1f3246-4eec-4f2a-bc19-9e24f4f1d517',
+      organization_id: proof.organization_id || '',
       test: options.test || false,
       intervention: {
         id: proof.id,

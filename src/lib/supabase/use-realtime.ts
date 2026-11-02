@@ -39,6 +39,22 @@ export function useRealtimeSubscription({
 
   onRefreshRef.current = onRefresh;
   onPayloadRef.current = onPayload;
+  const hasRefresh = !!onRefresh;
+
+  // Regroupe les rafales d'événements (ex. 20 changements simultanés) en un seul rechargement :
+  // sans cela, chaque événement déclenchait un appel API complet sur chaque console connectée.
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleRefresh = useCallback(() => {
+    if (refreshTimerRef.current) return;
+    refreshTimerRef.current = setTimeout(() => {
+      refreshTimerRef.current = null;
+      onRefreshRef.current?.();
+    }, 1000);
+  }, []);
+
+  useEffect(() => () => {
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+  }, []);
 
   // Supabase Realtime Subscription setup
   useEffect(() => {
@@ -60,16 +76,14 @@ export function useRealtimeSubscription({
     }
 
     channel.on('postgres_changes', changeConfig, (payload) => {
-      console.log(`[Realtime Primary] Event on ${table}:`, payload.eventType, (payload.new as any)?.id || '');
       onPayloadRef.current?.(payload);
-      onRefreshRef.current?.();
+      scheduleRefresh();
     });
 
     // 2. Écoute des broadcasts applicatifs (ex: avertissements urgents SOC)
     channel.on('broadcast', { event: '*' }, (payload) => {
-      console.log(`[Realtime Primary] Broadcast received on ${channelName}:`, payload.event);
       onPayloadRef.current?.(payload);
-      onRefreshRef.current?.();
+      scheduleRefresh();
     });
 
     // 3. Gestion du cycle de vie du canal
@@ -91,11 +105,11 @@ export function useRealtimeSubscription({
         channelRef.current = null;
       }
     };
-  }, [channelName, table, filter, enabled]);
+  }, [channelName, table, filter, enabled, scheduleRefresh]);
 
   // Fallback Polling Loop : Fréquent (4s) si Realtime déconnecté, Espacé (30s) si Realtime actif
   useEffect(() => {
-    if (!enabled || !onRefresh) return;
+    if (!enabled || !hasRefresh) return;
 
     const activeIntervalMs = status === 'CONNECTED' ? pollIntervalHeartbeatMs : pollIntervalFallbackMs;
 
@@ -107,7 +121,8 @@ export function useRealtimeSubscription({
     }, activeIntervalMs);
 
     return () => clearInterval(timer);
-  }, [status, enabled, onRefresh, pollIntervalFallbackMs, pollIntervalHeartbeatMs]);
+    // onRefresh est lu via sa ref : une fonction recréée à chaque rendu ne réinitialise plus le minuteur
+  }, [status, enabled, hasRefresh, pollIntervalFallbackMs, pollIntervalHeartbeatMs]);
 
   const forceRefresh = useCallback(() => {
     onRefreshRef.current?.();

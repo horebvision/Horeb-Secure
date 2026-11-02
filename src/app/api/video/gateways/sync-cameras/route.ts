@@ -6,18 +6,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { safeErrorResponse, isValidUuid } from '@/lib/security/api-guard';
 import { VideoRepository } from '@/lib/video';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export async function POST(req: NextRequest) {
   try {
     const gatewayId = req.headers.get('x-gateway-id');
     const gatewayToken = req.headers.get('x-gateway-token') || req.headers.get('authorization')?.replace('Bearer ', '');
 
-    if (!gatewayId || !gatewayToken) {
-      return NextResponse.json({ error: 'Authentification passerelle requise.' }, { status: 401 });
+    const gateway = await VideoRepository.authenticateGateway(gatewayId, gatewayToken || null);
+    if (!gateway) {
+      return NextResponse.json({ error: 'Authentification passerelle invalide ou révoquée.' }, { status: 401 });
     }
 
     const body = await req.json();
-    const orgId = body.organization_id;
+    // Organisation imposée par la passerelle authentifiée
+    const orgId = gateway.organization_id;
     const siteId = body.protected_site_id;
     const cameras = body.cameras;
 
@@ -28,12 +31,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const { data: ownedSite } = await supabaseAdmin
+      .from('protected_sites')
+      .select('id')
+      .eq('id', siteId)
+      .eq('organization_id', orgId)
+      .maybeSingle();
+    if (!ownedSite) {
+      return NextResponse.json({ error: 'Site protégé inconnu pour cette passerelle.' }, { status: 404 });
+    }
+
     const synced = await VideoRepository.syncGatewayDiscoveredCameras(
-      gatewayId,
+      gateway.id,
       orgId,
       siteId,
       cameras,
-      `gateway:${gatewayId}`
+      `gateway:${gateway.id}`
     );
 
     return NextResponse.json({

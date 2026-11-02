@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateApiRequest, safeErrorResponse, checkRateLimit } from '@/lib/security/api-guard';
+import { authenticateApiRequest, safeErrorResponse, checkRateLimit, getTenantOrgId } from '@/lib/security/api-guard';
 import { ExportService } from '@/lib/exports/export-service';
 import { ExportFilters } from '@/lib/exports/types';
 
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Contrôle SaaS Phase 6 : Habilitation EXPORTS
-    const orgId = user.organizationId || 'fa000000-0000-0000-0000-000000000001';
+    const orgId = getTenantOrgId(user);
     const { EntitlementService } = await import('@/lib/billing/entitlement-service');
     await EntitlementService.assertFeature(orgId, 'EXPORTS');
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateApiRequest } from '@/lib/security/api-guard';
+import { authenticateApiRequest, getTenantOrgId } from '@/lib/security/api-guard';
 import { ApiKeyService } from '@/lib/api-keys/api-key-service';
 import { ApiKeyScope } from '@/lib/api-keys/types';
 
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
       return errorResponse || NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 });
     }
 
-    const orgId = user.organizationId || 'fa000000-0000-0000-0000-000000000001';
+    const orgId = getTenantOrgId(user);
     const keys = await ApiKeyService.listApiKeys(orgId);
 
     return NextResponse.json({
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
       ? scopes
       : ['alerts:read', 'interventions:read'];
 
-    const orgId = user.organizationId || 'fa000000-0000-0000-0000-000000000001';
+    const orgId = getTenantOrgId(user);
 
     // Contrôles SaaS Phase 6 : Habilitation du module & Quota de clés
     const { EntitlementService } = await import('@/lib/billing/entitlement-service');

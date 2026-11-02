@@ -3,7 +3,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateApiRequest, safeErrorResponse, isValidUuid } from '@/lib/security/api-guard';
+import { authenticateApiRequest, safeErrorResponse, isValidUuid, getTenantOrgId } from '@/lib/security/api-guard';
 import { VideoRepository, VideoAdapterRegistry } from '@/lib/video';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
@@ -26,7 +26,7 @@ export async function POST(
       return errorResponse || NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    const orgId = user.organizationId || '8e1f3246-4eec-4f2a-bc19-9e24f4f1d517';
+    const orgId = getTenantOrgId(user);
     const camera = await VideoRepository.getCameraById(id, orgId);
 
     if (!camera) {

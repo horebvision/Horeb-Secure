@@ -3,9 +3,9 @@ import {
   authenticateApiRequest,
   getScopedDatabaseClient,
   safeErrorResponse,
+  getTenantOrgId,
 } from '@/lib/security/api-guard';
 
-const DEFAULT_ORG_ID = '8e1f3246-4eec-4f2a-bc19-9e24f4f1d517';
 const DEFAULT_CENTER_ID = '202a6970-8afb-44cf-9455-aa16e2c7cbd1';
 
 /**
@@ -120,7 +120,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const orgId = user.organizationId || DEFAULT_ORG_ID;
+    const orgId = getTenantOrgId(user);
     const hasOrgOverride = Boolean(req.cookies.get('securia_org_id')?.value);
     const isSuperAdminAll = user.isPlatformAdmin && !hasOrgOverride;
 

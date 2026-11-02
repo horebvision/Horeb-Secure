@@ -12,8 +12,9 @@ export async function POST(req: NextRequest) {
     const gatewayId = req.headers.get('x-gateway-id');
     const gatewayToken = req.headers.get('x-gateway-token') || req.headers.get('authorization')?.replace('Bearer ', '');
 
-    if (!gatewayId || !gatewayToken) {
-      return NextResponse.json({ error: 'Identifiants de passerelle Edge manquants.' }, { status: 401 });
+    const gateway = await VideoRepository.authenticateGateway(gatewayId, gatewayToken || null);
+    if (!gateway || !gatewayId) {
+      return NextResponse.json({ error: 'Authentification passerelle invalide ou révoquée.' }, { status: 401 });
     }
 
     const body = await req.json();

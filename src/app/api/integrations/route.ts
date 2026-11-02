@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateApiRequest, safeErrorResponse, sanitizeString, checkRateLimit } from '@/lib/security/api-guard';
+import { authenticateApiRequest, safeErrorResponse, sanitizeString, checkRateLimit, getTenantOrgId } from '@/lib/security/api-guard';
 import { WebhookRepository } from '@/lib/webhooks/repository';
 import { generatePartnerSecret, hashPartnerSecret } from '@/lib/webhooks/webhook-signer';
 import { validateWebhookUrl } from '@/lib/webhooks/ssrf-guard';
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
       return errorResponse || NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    const orgId = user.organizationId || '8e1f3246-4eec-4f2a-bc19-9e24f4f1d517';
+    const orgId = getTenantOrgId(user);
     const partners = await WebhookRepository.getPartnersByOrg(orgId);
 
     // Calcul des statistiques de livraison pour chaque partenaire
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: urlValidation.error }, { status: 400 });
     }
 
-    const orgId = user.organizationId || '8e1f3246-4eec-4f2a-bc19-9e24f4f1d517';
+    const orgId = getTenantOrgId(user);
 
     // Contrôles SaaS Phase 6 : Habilitation Webhooks & Quotas
     const { EntitlementService } = await import('@/lib/billing/entitlement-service');

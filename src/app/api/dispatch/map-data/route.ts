@@ -4,8 +4,6 @@ import { authenticateApiRequest, safeErrorResponse, isValidUuid } from '@/lib/se
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { isPlatformAdminUser } from '@/modules/users/types';
 
-const DEFAULT_ORG_ID = '8e1f3246-4eec-4f2a-bc19-9e24f4f1d517';
-
 /**
  * GET /api/dispatch/map-data
  * Point d'accès cartographique sécurisé pour le Centre de Sécurité et Superviseurs.
@@ -107,26 +105,27 @@ export async function GET(req: NextRequest) {
       }
       const { data: agentUsers } = await agentUsersQuery;
 
+      // Requêtes groupées (au lieu d'une requête par agent à chaque rafraîchissement de carte)
       if (agentUsers && agentUsers.length > 0) {
-        for (const u of agentUsers) {
-          const { data: hasRec } = await db
-            .from('security_agents')
-            .select('id')
-            .eq('user_id', u.id)
-            .maybeSingle();
-
-          if (!hasRec) {
-            const badge = `AGT-${u.id.substring(0, 6).toUpperCase()}`;
-            await db.from('security_agents').insert({
-              user_id: u.id,
-              organization_id: u.organization_id || targetOrgId || DEFAULT_ORG_ID,
-              security_center_id: u.security_center_id || orgCenterIds[0] || '202a6970-8afb-44cf-9455-aa16e2c7cbd1',
-              badge_number: badge,
-              duty_status: 'AVAILABLE',
-              patrol_vehicle: 'Patrouille Alpha Securia',
-              is_active: true,
-            });
-          }
+        const { data: existingAgents } = await db
+          .from('security_agents')
+          .select('user_id')
+          .in('user_id', agentUsers.map((u: any) => u.id));
+        const provisioned = new Set((existingAgents || []).map((a: any) => a.user_id));
+        const missing = agentUsers
+          .filter((u: any) => !provisioned.has(u.id))
+          .map((u: any) => ({
+            user_id: u.id,
+            organization_id: u.organization_id || targetOrgId,
+            // Jamais de centre d'une autre organisation
+            security_center_id: u.security_center_id || orgCenterIds[0] || null,
+            badge_number: `AGT-${u.id.substring(0, 6).toUpperCase()}`,
+            duty_status: 'AVAILABLE',
+            patrol_vehicle: 'Patrouille Alpha Securia',
+            is_active: true,
+          }));
+        if (missing.length > 0) {
+          await db.from('security_agents').insert(missing);
         }
       }
     } catch (e) {
@@ -360,7 +359,7 @@ export async function GET(req: NextRequest) {
     let camerasWithGps: any[] = [];
     try {
       const { VideoRepository } = await import('@/lib/video/repository');
-      const allCameras = await VideoRepository.getCamerasByOrg(targetOrgId || DEFAULT_ORG_ID);
+      const allCameras = await VideoRepository.getCamerasByOrg(targetOrgId);
       camerasWithGps = allCameras
         .filter((c) => typeof c.latitude === 'number' && typeof c.longitude === 'number')
         .map((c) => ({

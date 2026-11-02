@@ -9,9 +9,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateApiRequest, safeErrorResponse, checkRateLimit, isValidUuid } from '@/lib/security/api-guard';
+import { authenticateApiRequest, safeErrorResponse, checkRateLimit, isValidUuid, getTenantOrgId } from '@/lib/security/api-guard';
 import { VideoRepository, VideoCorrelationEngine, IngestVideoEventPayload } from '@/lib/video';
 import { verifyWebhookSignature } from '@/lib/webhooks/webhook-signer';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export async function GET(req: NextRequest) {
   try {
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
       return errorResponse || NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    const orgId = user.organizationId || '8e1f3246-4eec-4f2a-bc19-9e24f4f1d517';
+    const orgId = getTenantOrgId(user);
     const { searchParams } = new URL(req.url);
     const siteId = searchParams.get('site_id');
     const cameraId = searchParams.get('camera_id');
@@ -70,7 +71,15 @@ export async function POST(req: NextRequest) {
     const timestampHeader = req.headers.get('x-securia-timestamp') || req.headers.get('x-timestamp');
     const webhookSecret = process.env.VIDEO_WEBHOOK_SECRET;
 
-    if (signatureHeader && timestampHeader && webhookSecret) {
+    // Signature OBLIGATOIRE : sans elle, n'importe qui pouvait injecter de fausses alertes
+    // d'intrusion dans n'importe quelle organisation (dépêchant des patrouilles inutilement).
+    if (!webhookSecret) {
+      return NextResponse.json({ error: 'Ingestion vidéo non configurée (VIDEO_WEBHOOK_SECRET).' }, { status: 503 });
+    }
+    if (!signatureHeader || !timestampHeader) {
+      return NextResponse.json({ error: 'Signature webhook vidéo absente.' }, { status: 401 });
+    }
+    {
       const sigVerification = verifyWebhookSignature({
         payloadString: rawBody,
         signatureHeader,
@@ -102,12 +111,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Le champ event_type est requis.' }, { status: 400 });
     }
 
+    // L'organisation et le site sont obligatoires et doivent être cohérents (aucun tenant par défaut)
+    if (!isValidUuid(organization_id) || !isValidUuid(protected_site_id)) {
+      return NextResponse.json({ error: 'organization_id et protected_site_id (UUID) sont requis.' }, { status: 400 });
+    }
+    const { data: targetSite } = await supabaseAdmin
+      .from('protected_sites')
+      .select('id')
+      .eq('id', protected_site_id)
+      .eq('organization_id', organization_id)
+      .maybeSingle();
+    if (!targetSite) {
+      return NextResponse.json({ error: 'Site protégé inconnu pour cette organisation.' }, { status: 404 });
+    }
+
     const payload: IngestVideoEventPayload = {
       provider,
       event_id,
       event_type,
-      organization_id: organization_id || '8e1f3246-4eec-4f2a-bc19-9e24f4f1d517',
-      protected_site_id: protected_site_id || '00000000-0000-0000-0000-000000000001',
+      organization_id,
+      protected_site_id,
       camera_id: camera_id || undefined,
       camera_internal_id: camera_internal_id || undefined,
       confidence: typeof confidence === 'number' ? confidence : undefined,

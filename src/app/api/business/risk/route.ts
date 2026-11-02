@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateApiRequest } from '@/lib/security/api-guard';
+import { authenticateApiRequest, getTenantOrgId } from '@/lib/security/api-guard';
 import { AnalyticsService } from '@/lib/analytics/analytics-service';
 import { DateRangeKey } from '@/lib/analytics/types';
 
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     const endDate = searchParams.get('endDate') || undefined;
 
     const data = await AnalyticsService.getRiskAnalytics({
-      organizationId: user.organizationId || 'fa000000-0000-0000-0000-000000000001',
+      organizationId: getTenantOrgId(user),
       dateRange,
       startDate,
       endDate,
