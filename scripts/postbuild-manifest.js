@@ -2,7 +2,10 @@ const fs = require('fs');
 const path = require('path');
 
 const manifestPath = path.join(__dirname, '..', '.next', 'server', 'functions-config-manifest.json');
-if (fs.existsSync(manifestPath)) {
+// Contournement propre au runtime Netlify uniquement : sur Vercel (ou ailleurs), le proxy
+// d'authentification doit rester déclaré dans le manifeste.
+const isNetlifyBuild = process.env.NETLIFY === 'true';
+if (isNetlifyBuild && fs.existsSync(manifestPath)) {
   try {
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
     if (manifest.functions) {

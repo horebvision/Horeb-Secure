@@ -1,0 +1,7 @@
+# Fins de ligne normalisées (LF dans le dépôt) pour éviter les diffs parasites Windows/Linux
+* text=auto eol=lf
+*.bat text eol=crlf
+*.png binary
+*.jpg binary
+*.ico binary
+*.pdf binary
