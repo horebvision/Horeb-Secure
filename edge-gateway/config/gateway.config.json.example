@@ -1,0 +1,20 @@
+{
+  "cloudUrl": "https://securia-pilot.netlify.app",
+  "gatewayId": "",
+  "gatewayCode": "GW-SITE-EXAMPLE",
+  "secretToken": "",
+  "organizationId": "",
+  "protectedSiteId": "",
+  "pairingCode": "SEC-GW-XXXXXX",
+  "hardwareId": "HW-AUTO",
+  "version": "0.1.0",
+  "heartbeatIntervalSec": 30,
+  "discoveryIntervalMin": 15,
+  "localSubnets": [
+    "192.168.1.0/24",
+    "192.168.100.0/24"
+  ],
+  "onvifPorts": [80, 8080, 8000, 8899],
+  "rtspPorts": [554, 8554],
+  "go2rtcApiUrl": "http://127.0.0.1:1984"
+}

@@ -1,0 +1,40 @@
+version: '3.8'
+
+# ==============================================================================
+# SECURIA EDGE VIDEO GATEWAY — DOCKER COMPOSE
+# Déploiement client sur site (Raspberry Pi 4/5, Intel NUC, Serveur Linux)
+# RÈGLE : network_mode "host" indispensable pour le multicast ONVIF (UDP 3702)
+# ==============================================================================
+
+services:
+  # Moteur de relais média temps réel ultra-faible latence (WebRTC / RTSP)
+  media-engine:
+    image: alexxit/go2rtc:latest
+    container_name: securia-media-engine
+    restart: unless-stopped
+    network_mode: host
+    privileged: true
+    volumes:
+      - ./config/go2rtc.yaml:/config/go2rtc.yaml:ro
+    environment:
+      - TZ=Africa/Abidjan
+
+  # Daemon de supervision SECURIA Edge Video Gateway
+  securia-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: securia-edge-gateway
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      - media-engine
+    volumes:
+      - ./config:/opt/securia-edge-gateway/config
+      - ./data:/opt/securia-edge-gateway/data
+    environment:
+      - SECURIA_CLOUD_URL=https://securia-pilot.netlify.app
+      - SECURIA_HEARTBEAT_SEC=30
+      - SECURIA_DISCOVERY_MIN=15
+      - GO2RTC_API_URL=http://127.0.0.1:1984
+      - TZ=Africa/Abidjan

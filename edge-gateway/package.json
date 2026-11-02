@@ -1,0 +1,30 @@
+{
+  "name": "securia-edge-video-gateway",
+  "version": "0.1.0",
+  "description": "SECURIA Edge Video Gateway — Passerelle logicielle locale pour découverte ONVIF, relais RTSP/WebRTC et synchronisation Cloud",
+  "main": "dist/daemon.js",
+  "bin": {
+    "securia-gateway": "./bin/securia-gateway.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "tsx src/daemon.ts",
+    "scan": "tsx src/cli.ts scan",
+    "probe": "tsx src/cli.ts probe",
+    "pair": "tsx src/cli.ts pair",
+    "test-hw": "tsx src/cli.ts test-hw"
+  },
+  "keywords": [
+    "securia",
+    "edge",
+    "gateway",
+    "onvif",
+    "rtsp",
+    "webrtc",
+    "soc",
+    "surveillance"
+  ],
+  "author": "SECURIA SOC Team",
+  "license": "Proprietary",
+  "dependencies": {}
+}

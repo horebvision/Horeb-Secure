@@ -1,0 +1,36 @@
+# =============================================================================
+# HOREB SECURE — Configuration de Déploiement Netlify
+# =============================================================================
+# Production : https://horeb-secure.netlify.app
+# Compatible Next.js 16 / React 19 / Netlify Next.js Runtime (OpenNext)
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_FLAGS = "--legacy-peer-deps"
+  NEXT_DISABLE_NETLIFY_EDGE = "true"
+  NEXT_PUBLIC_APP_NAME = "Horeb Secure"
+  NEXT_PUBLIC_APP_URL = "https://horeb-secure.netlify.app"
+  # SÉCURITÉ : L'URL Supabase (NEXT_PUBLIC_SUPABASE_URL) ainsi que les clés
+  # (NEXT_PUBLIC_SUPABASE_ANON_KEY et SUPABASE_SERVICE_ROLE_KEY) doivent être
+  # configurées dans l'interface Netlify : Site configuration > Environment variables.
+  # AUCUNE URL Supabase ne doit être fixée en dur dans ce fichier (notamment la production).
+
+# Sécurité globale complémentaire pour les assets servis directement par le CDN
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(self), microphone=(), payment=(), usb=(), geolocation=(self)"
+
+# Cache CDN désactivé pour les routes d'API critiques de sécurité
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Cache-Control = "no-store, max-age=0, must-revalidate"
+    X-Robots-Tag = "noindex, nofollow"

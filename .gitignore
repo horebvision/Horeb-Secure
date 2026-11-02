@@ -1,0 +1,73 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# ── Dependencies ──────────────────────────────────────────────────────────────
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+/coverage
+
+# ── Next.js ───────────────────────────────────────────────────────────────────
+/.next/
+/out/
+/build
+
+# ── Environment variables — NEVER commit real credentials ────────────────────
+# Allow only the example template
+!.env.example
+# Block everything else
+.env
+.env.*
+!.env.example
+
+# ── Supabase CLI ──────────────────────────────────────────────────────────────
+.supabase/
+supabase/.branches
+supabase/.temp
+
+# ── Generated files ───────────────────────────────────────────────────────────
+src/lib/types/database.generated.ts
+
+# ── Misc ──────────────────────────────────────────────────────────────────────
+.DS_Store
+*.pem
+
+# ── Debug logs ────────────────────────────────────────────────────────────────
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ── Vercel & Netlify ──────────────────────────────────────────────────────────
+.vercel
+.netlify
+/.netlify/
+
+# ── Scratch & Backups (NEVER commit local audit/backup directories) ───────────
+/scratch/
+scratch/
+
+# ── TypeScript ────────────────────────────────────────────────────────────────
+*.tsbuildinfo
+next-env.d.ts
+
+# ── Artefacts de déploiement statique (obsolètes) ─────────────────────────────
+/dist/
+dist.zip
+
+# ── Médias et archives volumineux (limite GitHub : 100 Mo / fichier) ─────────
+*.mp4
+*.mov
+*.zip
+
+# ── Sauvegarde temporaire créée par scripts/deploy-netlify.js ────────────────
+.env.local.deploy-backup
+
+# ── Données locales de test ───────────────────────────────────────────────────
+/data/

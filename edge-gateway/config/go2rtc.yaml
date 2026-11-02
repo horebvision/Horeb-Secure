@@ -1,0 +1,25 @@
+# ==============================================================================
+# SECURIA EDGE VIDEO GATEWAY — CONFIGURATION GO2RTC SIDECAR
+# Conçu pour fonctionner sur le réseau local du client (Docker / Bare-metal)
+# Ne jamais exposer l'API d'administration (port 1984) sur Internet public
+# ==============================================================================
+
+api:
+  listen: "127.0.0.1:1984"
+
+rtsp:
+  listen: "127.0.0.1:8554"
+
+webrtc:
+  listen: ":8555"
+  # Candidats ICE locaux pour négociation WebRTC directe
+  candidates:
+    - "stun:stun.l.google.com:19302"
+    - "stun:stun1.l.google.com:19302"
+
+log:
+  level: "info"
+  format: "text"
+
+# Les flux sont injectés dynamiquement par le daemon SECURIA Edge via PUT /api/streams
+streams: {}
