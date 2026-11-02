@@ -71,3 +71,6 @@ dist.zip
 
 # ── Données locales de test ───────────────────────────────────────────────────
 /data/
+
+# ── Permissions locales Claude Code ──────────────────────────────────────────
+.claude/settings.local.json
