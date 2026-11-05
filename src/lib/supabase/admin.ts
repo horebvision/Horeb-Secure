@@ -7,6 +7,8 @@ export function isRealServiceRoleKey(key?: string): boolean {
       ? key
       : (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || '');
   if (!targetKey || targetKey.length < 30) return false;
+  // Nouveau format de clé secrète Supabase (remplace la clé legacy service_role).
+  if (/^sb_secret_[A-Za-z0-9_-]{20,}$/.test(targetKey)) return true;
   try {
     const parts = targetKey.split('.');
     if (parts.length === 3) {
