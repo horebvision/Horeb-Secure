@@ -5,8 +5,7 @@ import {
   safeErrorResponse,
   getTenantOrgId,
 } from '@/lib/security/api-guard';
-
-const DEFAULT_CENTER_ID = '202a6970-8afb-44cf-9455-aa16e2c7cbd1';
+import { resolveOrgCenterId } from '@/lib/organizations/center-resolver';
 
 /**
  * PATCH /api/agent/duty-status
@@ -153,7 +152,7 @@ export async function GET(req: NextRequest) {
           await db.from('security_agents').insert({
             user_id: u.id,
             organization_id: u.organization_id || orgId,
-            security_center_id: u.security_center_id || DEFAULT_CENTER_ID,
+            security_center_id: await resolveOrgCenterId(u.organization_id || orgId, u.security_center_id),
             badge_number: badge,
             duty_status: 'AVAILABLE',
             patrol_vehicle: 'Patrouille Alpha Securia',

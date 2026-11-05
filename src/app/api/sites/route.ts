@@ -9,8 +9,8 @@ import {
   isValidUuid,
   getTenantOrgId,
 } from '@/lib/security/api-guard';
+import { resolveOrgCenterId } from '@/lib/organizations/center-resolver';
 
-const DEFAULT_CENTER_ID = '202a6970-8afb-44cf-9455-aa16e2c7cbd1';
 const ALLOWED_SITE_TYPES = ['RESIDENCE', 'COMMERCE', 'ENTREPRISE', 'AUTRE'] as const;
 
 /**
@@ -244,7 +244,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const targetCenterId = user.securityCenterId || DEFAULT_CENTER_ID;
+    const targetCenterId = await resolveOrgCenterId(orgId, user.securityCenterId);
     const newSiteId = crypto.randomUUID();
     const nowIso = new Date().toISOString();
 

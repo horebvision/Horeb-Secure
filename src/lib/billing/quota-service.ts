@@ -84,10 +84,13 @@ export class QuotaService {
       if (isRealServiceRoleKey()) {
         switch (key) {
           case 'maxUsers': {
+            // Les agents relèvent de leur propre quota (maxAgents) : les compter ici
+            // bloquait la création de tout compte de gestion dès 15 agents.
             const { count } = await supabaseAdmin
               .from('users')
               .select('*', { count: 'exact', head: true })
-              .eq('organization_id', organizationId);
+              .eq('organization_id', organizationId)
+              .neq('role', 'AGENT');
             return count || 0;
           }
 
