@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AlertEngine } from '@/modules/alerts/alert-engine.service';
 import { createClient } from '@/lib/supabase/server';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import {
   authenticateApiRequest,
   getScopedDatabaseClient,
@@ -337,7 +338,9 @@ export async function PATCH(req: NextRequest) {
       ? 'Alerte annulée par le résident (fausse manipulation)'
       : `Statut changé vers ${status}`;
 
-    const supabase = await createClient();
+    // Procédure SECURITY DEFINER réservée au serveur : l'identité transmise est
+    // celle de l'utilisateur authentifié par requireAuth, jamais une valeur du client.
+    const supabase = supabaseAdmin;
 
     // Exécution de la procédure stockée atomique (qui valide existence, propriété et droits)
     const { data: rpcResult, error: rpcError } = await (supabase as any).rpc(

@@ -196,34 +196,10 @@ END;
 $function$;
 
 -- -----------------------------------------------------------------------------
--- 3. EXÉCUTION DES FONCTIONS PRIVILÉGIÉES RÉSERVÉE AU SERVEUR (service_role)
---    Ces fonctions SECURITY DEFINER reçoivent l'identité de l'acteur en paramètre :
---    exécutables par anon/authenticated, elles permettaient d'agir au nom de n'importe qui.
---    Elles ne sont appelées que par les API serveur (clé service_role) et pg_cron.
+-- 3. EXÉCUTION DES FONCTIONS PRIVILÉGIÉES RÉSERVÉE AU SERVEUR
+--    → appliquée en fin de migration (section 8) afin de couvrir aussi les
+--      fonctions créées ci-dessous.
 -- -----------------------------------------------------------------------------
-DO $$
-DECLARE
-  r RECORD;
-BEGIN
-  FOR r IN
-    SELECT p.oid::regprocedure AS sig
-    FROM pg_proc p
-    JOIN pg_namespace n ON n.oid = p.pronamespace
-    WHERE n.nspname = 'public'
-      AND p.proname IN (
-        'trigger_alert_engine', 'acknowledge_alert', 'assign_agent_to_alert', 'cancel_or_update_alert',
-        'checkout_visitor_person', 'create_protected_site', 'create_securia_notification',
-        'escalate_overdue_alerts', 'get_agent_dashboard_data', 'submit_agent_intervention_report',
-        'update_agent_duty_status', 'validate_intervention_report', 'get_audit_logs', 'get_pilot_status',
-        'get_securia_notifications', 'next_alert_number'
-      )
-  LOOP
-    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC', r.sig);
-    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM anon', r.sig);
-    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM authenticated', r.sig);
-    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', r.sig);
-  END LOOP;
-END $$;
 
 -- -----------------------------------------------------------------------------
 -- 4. RATE LIMITING DISTRIBUÉ
@@ -463,5 +439,46 @@ ON CONFLICT (id) DO UPDATE SET public = false;
 INSERT INTO storage.buckets (id, name, public, file_size_limit)
 VALUES ('exports', 'exports', false, 52428800)
 ON CONFLICT (id) DO UPDATE SET public = false;
+
+-- -----------------------------------------------------------------------------
+-- 8. FONCTIONS SECURITY DEFINER : EXÉCUTION RÉSERVÉE AU SERVEUR (service_role)
+--    Ces fonctions contournent la RLS et, pour la plupart, reçoivent l'identité
+--    de l'acteur en paramètre sans vérifier auth.uid() : exécutables avec la clé
+--    publique, elles permettaient d'agir au nom de n'importe qui (créer une
+--    alerte, réinitialiser des mots de passe, réinitialiser le pilote…).
+--    L'application ne les appelle que depuis ses API serveur (clé secrète) et
+--    pg_cron. Les fonctions de trigger n'ont pas besoin du droit EXECUTE.
+--    Exceptions : les assistants utilisés par les policies RLS, qui doivent
+--    rester exécutables par les rôles qui interrogent les tables.
+-- -----------------------------------------------------------------------------
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN
+    SELECT p.oid::regprocedure AS sig
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.prosecdef
+      AND p.prokind = 'f'
+      -- Assistants d'identité (dérivent l'acteur de auth.uid()) utilisés par la RLS
+      AND p.proname NOT IN (
+        'get_current_user_org_id', 'get_current_user_role', 'is_admin', 'is_site_member', 'is_site_owner',
+        'app_is_admin_context', 'app_is_platform_admin', 'app_current_org', 'app_current_role',
+        'app_current_agent_ids', 'is_platform_admin'
+      )
+      -- Toute autre fonction référencée par une policy reste exécutable
+      AND NOT EXISTS (
+        SELECT 1 FROM pg_policies pol
+        WHERE coalesce(pol.qual, '') || ' ' || coalesce(pol.with_check, '') ~ ('\m' || p.proname || '\s*\(')
+      )
+  LOOP
+    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC', r.sig);
+    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM anon', r.sig);
+    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM authenticated', r.sig);
+    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', r.sig);
+  END LOOP;
+END $$;
 
 COMMIT;
