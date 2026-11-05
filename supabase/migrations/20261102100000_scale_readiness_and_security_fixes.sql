@@ -358,6 +358,8 @@ CREATE TABLE IF NOT EXISTS public.client_invitations (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+-- En production, la table existait déjà sans updated_at (utilisée lors des révocations)
+ALTER TABLE public.client_invitations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 CREATE INDEX IF NOT EXISTS idx_client_invitations_org ON public.client_invitations (organization_id, status);
 CREATE INDEX IF NOT EXISTS idx_client_invitations_client ON public.client_invitations (client_id);
 
