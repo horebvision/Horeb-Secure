@@ -295,6 +295,23 @@ WHERE a.organization_id IS NULL AND u.id::text = a.user_id;
 
 CREATE INDEX IF NOT EXISTS idx_audit_logs_org_created ON public.audit_logs (organization_id, created_at DESC);
 
+-- Accès direct (PostgREST) : lecture limitée à l'organisation, écriture réservée
+-- au serveur. L'application lit et écrit exclusivement via ses API (clé secrète).
+-- Avant : tout ADMIN/SECURITY_MANAGER lisait les journaux de toutes les entreprises
+-- et tout utilisateur connecté pouvait insérer des entrées falsifiées.
+DROP POLICY IF EXISTS "Lecture securisee audit_logs" ON public.audit_logs;
+DROP POLICY IF EXISTS "Insertion securisee audit_logs" ON public.audit_logs;
+DROP POLICY IF EXISTS audit_logs_select_scoped ON public.audit_logs;
+CREATE POLICY audit_logs_select_scoped ON public.audit_logs FOR SELECT TO authenticated
+USING (
+  public.app_is_platform_admin()
+  OR (
+    organization_id IS NOT NULL
+    AND organization_id = public.app_current_org()
+    AND public.app_current_role() IN ('ADMIN', 'SECURITY_MANAGER')
+  )
+);
+
 -- -----------------------------------------------------------------------------
 -- 6. TABLES MANQUANTES (référencées par le code applicatif)
 -- -----------------------------------------------------------------------------
@@ -439,6 +456,21 @@ ON CONFLICT (id) DO UPDATE SET public = false;
 INSERT INTO storage.buckets (id, name, public, file_size_limit)
 VALUES ('exports', 'exports', false, 52428800)
 ON CONFLICT (id) DO UPDATE SET public = false;
+
+-- -----------------------------------------------------------------------------
+-- 7 bis. SUPER ADMIN PLATEFORME
+--    La RLS v4.2 reconnaît le Super Admin via public.platform_admins. On y inscrit
+--    le compte déjà reconnu par l'application (SUPER_ADMIN_EMAIL, src/modules/users/types.ts)
+--    afin qu'il conserve sa supervision transverse ; aucun autre droit n'est accordé.
+-- -----------------------------------------------------------------------------
+INSERT INTO public.platform_admins (user_id, notes)
+SELECT u.id, 'Super Admin plateforme (SUPER_ADMIN_EMAIL)'
+FROM public.users u
+JOIN auth.users au ON au.id = u.id
+WHERE lower(u.email) = lower('ahossancedric22@gmail.com')
+  AND u.role = 'ADMIN'
+  AND u.is_active = true
+ON CONFLICT (user_id) DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- 8. FONCTIONS SECURITY DEFINER : EXÉCUTION RÉSERVÉE AU SERVEUR (service_role)
