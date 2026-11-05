@@ -10,7 +10,18 @@
 import crypto from 'crypto';
 import { EphemeralStreamToken, VideoCamera, VideoProtocol } from './types';
 
-const STREAM_TOKEN_SECRET = process.env.VIDEO_TOKEN_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || 'securia_stream_secret_key_2026';
+/**
+ * Secret dédié à la signature des jetons de flux vidéo. Aucun repli : ni secret
+ * codé en dur (forgeable par quiconque lit le code), ni clé Supabase (dont la
+ * rotation invaliderait les flux et qui ne doit pas servir à autre chose).
+ */
+function getStreamTokenSecret(): string {
+  const secret = process.env.VIDEO_TOKEN_SECRET;
+  if (!secret || secret.length < 32) {
+    throw new Error('[SECURITY CONFIG ERROR] VIDEO_TOKEN_SECRET est absente ou trop courte (32 caractères minimum).');
+  }
+  return secret;
+}
 const TOKEN_TTL_SECONDS = 300; // 5 minutes max
 
 /**
@@ -102,7 +113,7 @@ export function generateEphemeralStreamToken(
 
   const expiresAt = new Date(Date.now() + TOKEN_TTL_SECONDS * 1000).toISOString();
   const payloadToSign = `${camera.id}:${camera.organization_id}:${userId}:${expiresAt}`;
-  const hmac = crypto.createHmac('sha256', STREAM_TOKEN_SECRET).update(payloadToSign).digest('hex');
+  const hmac = crypto.createHmac('sha256', getStreamTokenSecret()).update(payloadToSign).digest('hex');
   const token = `vtok_${Buffer.from(payloadToSign).toString('base64url')}.${hmac}`;
 
   return {
@@ -144,8 +155,15 @@ export function verifyEphemeralStreamToken(tokenStr: string): {
     return { valid: false, error: 'Décodage payload échoué.' };
   }
 
-  const expectedHmac = crypto.createHmac('sha256', STREAM_TOKEN_SECRET).update(decodedPayload).digest('hex');
-  if (expectedHmac !== receivedHmac) {
+  let secret: string;
+  try {
+    secret = getStreamTokenSecret();
+  } catch {
+    return { valid: false, error: 'Service vidéo non configuré.' };
+  }
+  const expected = Buffer.from(crypto.createHmac('sha256', secret).update(decodedPayload).digest('hex'));
+  const received = Buffer.from(receivedHmac || '');
+  if (expected.length !== received.length || !crypto.timingSafeEqual(expected, received)) {
     return { valid: false, error: 'Signature du jeton vidéo invalide.' };
   }
 

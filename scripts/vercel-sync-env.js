@@ -38,6 +38,7 @@ const VARS = [
   ['TWILIO_AUTH_TOKEN', read('TWILIO_AUTH_TOKEN'), 'sensitive'],
   ['TWILIO_FROM_PHONE', read('TWILIO_FROM_PHONE'), 'plain'],
   ['PAYMENT_WEBHOOK_SECRET', read('PAYMENT_WEBHOOK_SECRET'), 'sensitive'],
+  ['VIDEO_TOKEN_SECRET', read('VIDEO_TOKEN_SECRET'), 'sensitive'],
 ];
 
 (async () => {
