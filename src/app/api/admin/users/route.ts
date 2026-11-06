@@ -235,6 +235,8 @@ export async function POST(req: NextRequest) {
           email: cleanEmail,
           password: initialPassword,
           email_confirm: true,
+          // Rôle et organisation de confiance : app_metadata n'est modifiable qu'avec la clé secrète
+          app_metadata: { role, organization_id: targetOrgId },
           user_metadata: {
             full_name: cleanFullName,
             phone: cleanPhone,

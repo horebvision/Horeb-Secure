@@ -369,6 +369,8 @@ export class OrganizationService {
           email: adminEmail,
           password: initialPassword,
           email_confirm: true,
+          // Rôle et organisation de confiance : app_metadata n'est modifiable qu'avec la clé secrète
+          app_metadata: { role: 'ADMIN', organization_id: newOrg.id },
           user_metadata: {
             full_name: adminName,
             role: 'ADMIN',
@@ -562,6 +564,8 @@ export class OrganizationService {
             email: adminEmail,
             password: newPassword,
             email_confirm: true,
+            // Rôle et organisation de confiance : app_metadata n'est modifiable qu'avec la clé secrète
+            app_metadata: { role: 'ADMIN', organization_id: organizationId },
             user_metadata: {
               full_name: adminFullName,
               role: 'ADMIN',

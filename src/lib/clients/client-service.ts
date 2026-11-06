@@ -893,6 +893,8 @@ export class ClientService {
           email: invitation.email,
           password: password,
           email_confirm: true,
+          // Rôle et organisation de confiance : app_metadata n'est modifiable qu'avec la clé secrète
+          app_metadata: { role: 'USER', organization_id: invitation.organization_id },
           user_metadata: {
             full_name: invitation.full_name,
             phone: invitation.phone,
