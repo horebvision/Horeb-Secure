@@ -12,8 +12,8 @@ interface UseRealtimeOptions {
   filter?: string;
   onPayload?: (payload: any) => void;
   onRefresh?: () => void | Promise<void>;
-  pollIntervalFallbackMs?: number; // default 4000ms when Realtime is inactive
-  pollIntervalHeartbeatMs?: number; // default 30000ms when Realtime is active
+  pollIntervalFallbackMs?: number; // défaut 15 s si Realtime inactif (évite l'emballement si la limite de connexions est atteinte)
+  pollIntervalHeartbeatMs?: number; // défaut 60 s si Realtime actif (filet de sécurité)
   enabled?: boolean;
 }
 
@@ -28,8 +28,8 @@ export function useRealtimeSubscription({
   filter,
   onPayload,
   onRefresh,
-  pollIntervalFallbackMs = 4000,
-  pollIntervalHeartbeatMs = 30000,
+  pollIntervalFallbackMs = 15000,
+  pollIntervalHeartbeatMs = 60000,
   enabled = true,
 }: UseRealtimeOptions) {
   const [status, setStatus] = useState<RealtimeStatus>('CONNECTING');
@@ -107,20 +107,28 @@ export function useRealtimeSubscription({
     };
   }, [channelName, table, filter, enabled, scheduleRefresh]);
 
-  // Fallback Polling Loop : Fréquent (4s) si Realtime déconnecté, Espacé (30s) si Realtime actif
+  // Polling de secours : espacé si Realtime actif (simple filet de sécurité), plus fréquent sinon.
+  // Suspendu quand l'onglet est masqué (aucune requête pour un écran que personne ne regarde),
+  // avec un rafraîchissement immédiat au retour sur l'onglet.
   useEffect(() => {
-    if (!enabled || !hasRefresh) return;
+    if (!enabled || !hasRefresh || typeof document === 'undefined') return;
 
     const activeIntervalMs = status === 'CONNECTED' ? pollIntervalHeartbeatMs : pollIntervalFallbackMs;
 
     const timer = setInterval(() => {
-      if (status !== 'CONNECTED') {
-        console.debug('[Realtime Fallback] Exécution du polling de secours...');
-      }
+      if (document.visibilityState === 'hidden') return;
       onRefreshRef.current?.();
     }, activeIntervalMs);
 
-    return () => clearInterval(timer);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') onRefreshRef.current?.();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
     // onRefresh est lu via sa ref : une fonction recréée à chaque rendu ne réinitialise plus le minuteur
   }, [status, enabled, hasRefresh, pollIntervalFallbackMs, pollIntervalHeartbeatMs]);
 

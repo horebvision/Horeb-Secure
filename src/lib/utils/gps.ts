@@ -205,6 +205,9 @@ export function getCurrentHighAccuracyPosition(options?: {
   });
 }
 
+/** Agent immobile : une position de contrôle par minute suffit à prouver qu'il est en ligne. */
+const STATIONARY_HEARTBEAT_MS = 60000;
+
 /**
  * Écoute continue des déplacements (watchPosition) avec limitation intelligente de bande passante et streaming temps réel
  */
@@ -234,10 +237,11 @@ export function watchAgentLivePosition(
       const dist = calculateDistance(lastLat, lastLon, lat, lon);
       const timeDiff = now - lastSentTime;
 
-      // Évite le spam si l'agent est immobile ou déplacement sous le seuil
-      if (dist < minDistance && timeDiff < minInterval * 2) {
-        return;
-      }
+      // 1. Intervalle minimal toujours respecté. Auparavant, tout déplacement au-delà du seuil
+      //    était envoyé immédiatement : en véhicule, une requête par seconde et par agent.
+      if (timeDiff < minInterval) return;
+      // 2. Agent immobile (sous le seuil) : simple position de contrôle toutes les 60 s.
+      if (dist < minDistance && timeDiff < STATIONARY_HEARTBEAT_MS) return;
     }
 
     lastLat = lat;

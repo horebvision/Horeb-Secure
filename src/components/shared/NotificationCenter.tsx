@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { soundService } from '@/lib/utils/sound';
 import { authFetch } from '@/lib/utils/api-client';
+import { useRealtimeSubscription } from '@/lib/supabase/use-realtime';
 
 interface NotificationCenterProps {
   userId?: string;
@@ -68,10 +69,19 @@ export function NotificationCenter({
 
   useEffect(() => {
     loadNotifications(true);
-    // Rafraîchissement périodique toutes les 8 secondes
-    const interval = setInterval(() => loadNotifications(true), 8000);
-    return () => clearInterval(interval);
   }, [userId, role]);
+
+  // Temps réel : rechargement à chaque nouvelle notification du destinataire (filtrée par la RLS).
+  // Remplace l'interrogation toutes les 8 s ; filet de sécurité 60 s (15 s si le temps réel est indisponible),
+  // suspendu quand l'onglet est masqué.
+  const hasRealUser = !!userId && userId !== 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+  useRealtimeSubscription({
+    channelName: `notifications:${userId}`,
+    table: 'notifications',
+    filter: hasRealUser ? `user_id=eq.${userId}` : undefined,
+    onRefresh: () => loadNotifications(true),
+    enabled: hasRealUser,
+  });
 
   // Fermer la modal en cliquant à l'extérieur
   useEffect(() => {

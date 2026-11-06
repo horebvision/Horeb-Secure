@@ -155,7 +155,8 @@ export default function AgentDashboardPage() {
       (err) => {
         console.warn('[Agent Dashboard] Note géolocalisation:', err);
       },
-      { minDistanceMeters: 5, minIntervalMs: 6000 }
+      // Au plus une position toutes les 10 s en mouvement (≥ 15 m), une par minute à l'arrêt
+      { minDistanceMeters: 15, minIntervalMs: 10000 }
     );
 
     return () => {

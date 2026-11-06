@@ -179,8 +179,12 @@ export function TacticalDispatchMap({
     });
     alertsChannel.subscribe();
 
-    // Rafraîchissement périodique de secours (heartbeat 10s)
-    const interval = setInterval(fetchMapData, 10000);
+    // Filet de sécurité : alertes et positions arrivent déjà en temps réel. 30 s au lieu de 10 s,
+    // suspendu quand l'onglet est masqué (écran SOC en arrière-plan = aucune requête).
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      fetchMapData();
+    }, 30000);
 
     return () => {
       clearInterval(interval);

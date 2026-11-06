@@ -41,7 +41,11 @@ export function VideoEventsFeed() {
 
   useEffect(() => {
     loadEvents();
-    const interval = setInterval(loadEvents, 8000); // Polling résilient toutes les 8s
+    // Polling toutes les 20 s, suspendu quand l'onglet est masqué
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'hidden') return;
+      loadEvents();
+    }, 20000);
     return () => clearInterval(interval);
   }, []);
 
