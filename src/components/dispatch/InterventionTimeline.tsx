@@ -1,8 +1,7 @@
 'use client';
 
 import React from 'react';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import { formatDateSafe } from '@/lib/utils/date';
 import {
   calculateAlertSla,
   SlaStatus,
@@ -206,9 +205,9 @@ export function InterventionTimeline({
               <div className="text-right shrink-0">
                 {step.timestamp ? (
                   <div className="font-mono text-xs font-bold text-slate-300">
-                    {format(new Date(step.timestamp), 'HH:mm:ss', { locale: fr })}
+                    {formatDateSafe(step.timestamp, 'HH:mm:ss')}
                     <span className="block text-[10px] text-slate-500 font-normal">
-                      {format(new Date(step.timestamp), 'dd/MM/yyyy')}
+                      {formatDateSafe(step.timestamp, 'dd/MM/yyyy')}
                     </span>
                   </div>
                 ) : (

@@ -4,7 +4,14 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { getBrowserClient } from '@/lib/supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
-export type RealtimeStatus = 'CONNECTING' | 'CONNECTED' | 'FALLBACK_POLLING' | 'DISCONNECTED';
+let channelSeq = 0;
+/** Suffixe unique : chaque abonnement possède son propre canal (voir l'explication dans le hook). */
+export function uniqueChannelName(base: string): string {
+  channelSeq += 1;
+  return `${base}#${Date.now().toString(36)}-${channelSeq}`;
+}
+
+export type RealtimeStatus ='CONNECTING' | 'CONNECTED' | 'FALLBACK_POLLING' | 'DISCONNECTED';
 
 interface UseRealtimeOptions {
   channelName: string;
@@ -60,50 +67,66 @@ export function useRealtimeSubscription({
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') return;
 
-    const supabase = getBrowserClient();
+    let supabase: ReturnType<typeof getBrowserClient>;
+    let channel: RealtimeChannel;
+    let cancelled = false;
     setStatus('CONNECTING');
 
-    const channel = supabase.channel(channelName);
+    try {
+      supabase = getBrowserClient();
 
-    // 1. Écoute des mutations PostgreSQL (INSERT, UPDATE, DELETE)
-    const changeConfig: any = {
-      event: '*',
-      schema: 'public',
-      table,
-    };
-    if (filter) {
-      changeConfig.filter = filter;
-    }
+      // Nom de canal UNIQUE par abonnement. supabase.channel(nom) renvoie le canal existant
+      // s'il porte déjà ce nom : deux composants identiques montés en même temps (ex. le centre
+      // de notifications de la barre de navigation ET celui de /dispatch), ou un remontage avant
+      // la fin du removeChannel asynchrone, faisaient lever « cannot add postgres_changes
+      // callbacks after subscribe() » et plantaient toute la page.
+      // Aucun broadcast serveur ne cible ces noms (cf. orgChannelName) : le suffixe ne coupe rien.
+      channel = supabase.channel(uniqueChannelName(channelName));
 
-    channel.on('postgres_changes', changeConfig, (payload) => {
-      onPayloadRef.current?.(payload);
-      scheduleRefresh();
-    });
-
-    // 2. Écoute des broadcasts applicatifs (ex: avertissements urgents SOC)
-    channel.on('broadcast', { event: '*' }, (payload) => {
-      onPayloadRef.current?.(payload);
-      scheduleRefresh();
-    });
-
-    // 3. Gestion du cycle de vie du canal
-    channel.subscribe((subStatus, err) => {
-      if (subStatus === 'SUBSCRIBED') {
-        console.log(`[Realtime Primary] Connecté avec succès au canal: ${channelName}`);
-        setStatus('CONNECTED');
-      } else if (subStatus === 'CHANNEL_ERROR' || subStatus === 'TIMED_OUT' || subStatus === 'CLOSED') {
-        console.warn(`[Realtime Primary] Échec ou coupure Realtime (${subStatus}), bascule automatique en FALLBACK POLLING:`, err);
-        setStatus('FALLBACK_POLLING');
+      // 1. Écoute des mutations PostgreSQL (INSERT, UPDATE, DELETE)
+      const changeConfig: any = {
+        event: '*',
+        schema: 'public',
+        table,
+      };
+      if (filter) {
+        changeConfig.filter = filter;
       }
-    });
+
+      channel.on('postgres_changes', changeConfig, (payload) => {
+        onPayloadRef.current?.(payload);
+        scheduleRefresh();
+      });
+
+      // 2. Écoute des broadcasts applicatifs (ex: avertissements urgents SOC)
+      channel.on('broadcast', { event: '*' }, (payload) => {
+        onPayloadRef.current?.(payload);
+        scheduleRefresh();
+      });
+
+      // 3. Gestion du cycle de vie du canal
+      channel.subscribe((subStatus, err) => {
+        if (cancelled) return;
+        if (subStatus === 'SUBSCRIBED') {
+          setStatus('CONNECTED');
+        } else if (subStatus === 'CHANNEL_ERROR' || subStatus === 'TIMED_OUT' || subStatus === 'CLOSED') {
+          console.warn(`[Realtime] Coupure (${subStatus}) sur ${channelName}, bascule en polling de secours:`, err);
+          setStatus('FALLBACK_POLLING');
+        }
+      });
+    } catch (err) {
+      // Le temps réel est un confort : son échec ne doit jamais faire tomber l'écran.
+      console.warn(`[Realtime] Abonnement impossible (${channelName}), polling de secours:`, err);
+      setStatus('FALLBACK_POLLING');
+      return;
+    }
 
     channelRef.current = channel;
 
     return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
+      cancelled = true;
+      channelRef.current = null;
+      supabase.removeChannel(channel).catch(() => {});
     };
   }, [channelName, table, filter, enabled, scheduleRefresh]);
 

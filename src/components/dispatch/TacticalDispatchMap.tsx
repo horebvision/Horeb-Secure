@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import { soundService } from '@/lib/utils/sound';
 import { getBrowserClient } from '@/lib/supabase/client';
+import { subscribeToBroadcast } from '@/lib/supabase/broadcast-subscription';
+import { uniqueChannelName } from '@/lib/supabase/use-realtime';
 import { fetchRoadRoute } from '@/lib/geo/geo-engine';
 import { authFetch } from '@/lib/utils/api-client';
 import { useSecuria } from '@/lib/store/securia-context';
@@ -135,10 +137,12 @@ export function TacticalDispatchMap({
     }
 
     // Connexion WebSocket Supabase Realtime (Sub-seconde pour tracking patrouilles & alertes)
-    const supabase = getBrowserClient();
-    // Canal de tracking cloisonné par organisation (jamais de canal global inter-tenants)
-    const trackingChannel = supabase.channel(organizationId ? `realtime_tracking:${organizationId}` : `realtime_tracking:none`);
-    trackingChannel.on('broadcast', { event: 'agent_location' }, (payload: any) => {
+    // Canal de tracking cloisonné par organisation (jamais de canal global inter-tenants).
+    // Partagé via le registre : son nom est imposé par le broadcast serveur et ne peut être rendu unique.
+    const releaseTracking = subscribeToBroadcast(
+      organizationId ? `realtime_tracking:${organizationId}` : `realtime_tracking:none`,
+      'agent_location',
+      (payload: any) => {
       const data = payload?.payload;
       if (!data) return;
 
@@ -169,15 +173,23 @@ export function TacticalDispatchMap({
           }),
         };
       });
-    });
-    trackingChannel.subscribe();
+      }
+    );
 
-    // Changements d'alertes via postgres_changes : filtrés par les politiques RLS du tenant
-    const alertsChannel = supabase.channel(`map_alerts_${organizationId || 'none'}`);
-    alertsChannel.on('postgres_changes', { event: '*', schema: 'public', table: 'alerts' }, () => {
-      fetchMapData();
-    });
-    alertsChannel.subscribe();
+    // Changements d'alertes via postgres_changes : filtrés par les politiques RLS du tenant.
+    // Nom unique par abonnement : un nom fixe faisait planter la page au remontage
+    // (« cannot add postgres_changes callbacks after subscribe() »).
+    const supabase = getBrowserClient();
+    let alertsChannel: ReturnType<typeof supabase.channel> | null = null;
+    try {
+      alertsChannel = supabase.channel(uniqueChannelName(`map_alerts_${organizationId || 'none'}`));
+      alertsChannel.on('postgres_changes', { event: '*', schema: 'public', table: 'alerts' }, () => {
+        fetchMapData();
+      });
+      alertsChannel.subscribe();
+    } catch (err) {
+      console.warn('[TacticalMap] Temps réel des alertes indisponible, polling de secours:', err);
+    }
 
     // Filet de sécurité : alertes et positions arrivent déjà en temps réel. 30 s au lieu de 10 s,
     // suspendu quand l'onglet est masqué (écran SOC en arrière-plan = aucune requête).
@@ -195,10 +207,8 @@ export function TacticalDispatchMap({
         window.removeEventListener('securia:refresh_map', handleSiteSync);
         window.removeEventListener('securia:agent_location_updated', handleSiteSync);
       }
-      try {
-        supabase.removeChannel(trackingChannel);
-        supabase.removeChannel(alertsChannel);
-      } catch (e) {}
+      releaseTracking();
+      if (alertsChannel) supabase.removeChannel(alertsChannel).catch(() => {});
     };
   }, [refreshTrigger, organizationId]);
 

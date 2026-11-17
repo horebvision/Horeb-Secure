@@ -46,8 +46,7 @@ import {
   AlertTriangle,
   Video,
 } from 'lucide-react';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import { formatDateSafe } from '@/lib/utils/date';
 import { useAuthGuard } from '@/lib/auth/use-auth-guard';
 
 const ALLOWED_ROLES = ['SECURITY_MANAGER', 'ADMIN'] as const;
@@ -875,7 +874,7 @@ export default function DispatchDashboardPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-slate-400 font-mono">
-                      Déclenché à {format(new Date(activeTimelineAlert.created_at), 'HH:mm:ss', { locale: fr })}
+                      Déclenché à {formatDateSafe(activeTimelineAlert.created_at, 'HH:mm:ss')}
                     </span>
                     <Link
                       href={`/dispatch/alerts/${activeTimelineAlert.id}`}

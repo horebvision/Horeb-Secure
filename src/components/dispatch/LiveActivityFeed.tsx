@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import { formatDateSafe } from '@/lib/utils/date';
 import { authFetch } from '@/lib/utils/api-client';
 import {
   Activity,
@@ -148,7 +147,7 @@ export function LiveActivityFeed({
                       {ev.comment}
                     </span>
                     <span className="font-mono text-[10px] text-slate-400 shrink-0">
-                      {format(new Date(ev.created_at), 'HH:mm:ss', { locale: fr })}
+                      {formatDateSafe(ev.created_at, 'HH:mm:ss')}
                     </span>
                   </div>
 

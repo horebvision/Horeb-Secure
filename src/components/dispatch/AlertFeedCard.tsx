@@ -29,8 +29,7 @@ import {
   FileText,
   ShieldCheck,
 } from 'lucide-react';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import { formatDateSafe } from '@/lib/utils/date';
 
 interface AlertFeedCardProps {
   alert: Alert;
@@ -128,10 +127,10 @@ export function AlertFeedCard({
 
           <div className="flex items-center space-x-1.5 text-xs text-slate-400 font-mono">
             <Clock className="w-3.5 h-3.5 text-slate-500" />
-            <span>{format(new Date(alert.created_at), 'HH:mm:ss', { locale: fr })}</span>
+            <span>{formatDateSafe(alert.created_at, 'HH:mm:ss')}</span>
             <span className="text-slate-600">•</span>
             <span className="text-[11px] text-slate-400">
-              {format(new Date(alert.created_at), 'dd/MM/yyyy')}
+              {formatDateSafe(alert.created_at, 'dd/MM/yyyy')}
             </span>
           </div>
         </div>
@@ -235,7 +234,7 @@ export function AlertFeedCard({
             </span>
             {alert.resolved_at && (
               <span className="font-mono text-emerald-300/80 text-[10px]">
-                {format(new Date(alert.resolved_at), 'dd/MM à HH:mm')}
+                {formatDateSafe(alert.resolved_at, 'dd/MM à HH:mm')}
               </span>
             )}
           </div>
