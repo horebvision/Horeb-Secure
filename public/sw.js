@@ -3,18 +3,18 @@
  * Installation résiliente, Cache-first pour assets statiques, Network-first pour pages, exclusion stricte API
  */
 
-const CACHE_NAME = 'horeb-secure-cache-v2.9.0';
+const CACHE_NAME = 'horeb-secure-cache-v3.0.0';
 
+// Pré-cache léger : page hors ligne et icônes (l'ancien pré-cache tirait un logo de 1,6 Mo à
+// l'installation, coûteux sur forfait mobile).
+const OFFLINE_URL = '/offline.html';
 const STATIC_ASSETS = [
-  '/',
+  OFFLINE_URL,
   '/login',
   '/manifest.webmanifest',
-  '/manifest.json',
   '/favicon.png',
   '/icon-192.png',
   '/icon-512.png',
-  '/logo-shield.png',
-  '/horeb-secure-logo.png',
 ];
 
 self.addEventListener('install', (event) => {
@@ -81,10 +81,10 @@ self.addEventListener('fetch', (event) => {
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(async () => {
+        // Hors ligne : page déjà en cache si elle existe, sinon page « Pas de connexion »
+        // (plutôt que la page d'accueil commerciale, qui laissait croire à une déconnexion).
         const cached = await caches.match(event.request);
-        if (cached) return cached;
-        const indexCached = await caches.match('/');
-        return indexCached || caches.match('/login');
+        return cached || (await caches.match(OFFLINE_URL)) || Response.error();
       })
     );
     return;

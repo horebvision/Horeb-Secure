@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/favicon.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon.png', sizes: '64x64', type: 'image/png' },
       { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
       { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
     ],
@@ -45,6 +45,17 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr" className="dark h-full antialiased">
+      <head>
+        {/* Capture de l'invite d'installation AVANT le chargement de React : Chrome Android émet
+            beforeinstallprompt très tôt ; capté seulement après l'hydratation, il était souvent perdu
+            et le bouton « Installer » retombait sur le guide manuel. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window._deferredPwaPrompt=e;window.dispatchEvent(new CustomEvent('securia:pwa_prompt_ready'));});",
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col bg-slate-950 text-slate-100 selection:bg-red-500 selection:text-white">
         <PwaServiceWorkerRegister />
         <PwaInstallPrompt />
